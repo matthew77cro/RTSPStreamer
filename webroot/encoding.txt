@@ -1,0 +1,9 @@
+A few examples of extracting raw h264 byte stream (Annex B type) from mp4 file using ffmpeg :
+
+ffmpeg -i input.mp4 -s 1280x720 -c:v libx264 -x264opts slice-max-size=1024:aud=1:threads=4:keyint=300:fps=60 -bsf h264_mp4toannexb -an -f h264 output.h264
+
+ffmpeg -i input.mp4 -s 1280x720 -c:v libx264 -x264opts slice-max-size=1024:aud=1:threads=4:keyint=300:fps=30 -bsf h264_mp4toannexb -an -f h264 output.h264
+
+ffmpeg -i input.mp4 -s 1920x1080 -c:v libx264 -x264opts slice-max-size=1024:aud=1:threads=4:keyint=300:fps=60 -bsf h264_mp4toannexb -an -f h264 output.h264
+
+fmpeg -i input.mp4 -s 1920x1080 -c:v libx264 -x264opts slice-max-size=1024:aud=1:threads=4:keyint=300:fps=30 -bsf h264_mp4toannexb -an -f h264 output.h264
