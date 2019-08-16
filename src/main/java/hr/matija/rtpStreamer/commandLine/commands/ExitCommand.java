@@ -10,7 +10,8 @@ public class ExitCommand implements Command {
 
 	@Override
 	public CommandResult execute(String command[], Server server, Map<String, Command> allCommands) {
-		server.stopStream();
+		if(server.isStreaming())
+			server.stopStream();
 		return CommandResult.EXIT;
 	}
 

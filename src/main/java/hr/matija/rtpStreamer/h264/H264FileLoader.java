@@ -6,6 +6,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
+/**
+ * Loader of the h264 nal units from a file on disk.
+ * @author Matija
+ *
+ */
 public class H264FileLoader implements H264Loader{
 	
 	private static int kibi64 = 64*1024;
@@ -15,6 +20,13 @@ public class H264FileLoader implements H264Loader{
 	
 	private NalUnit nextNal;
 	
+	/**
+	 * Initializes the h264 file loader
+	 * @param h264File path to the raw h264 file in the annex B format (byte stream of nal units
+	 *                 separated by 0x00 00 01, and each access unit separated by the AUD - access unit
+	 *                 delimiter; AUD must not be at the start of the file!)
+	 * @throws IOException if an I/O error occurs
+	 */
 	public H264FileLoader(Path h264File)  throws IOException {
 		this.h264File = Objects.requireNonNull(h264File);
 		
@@ -76,6 +88,10 @@ outer:	while(true) {
 		return nextNal;
 	}
 	
+	/**
+	 * Close the loader. MUST be called when done by the loader.
+	 * @throws IOException if an I/O error occurs
+	 */
 	public void close() throws IOException {
 		bis.close();
 	}

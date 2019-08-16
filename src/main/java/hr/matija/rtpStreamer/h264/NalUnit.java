@@ -3,8 +3,18 @@ package hr.matija.rtpStreamer.h264;
 import java.util.Arrays;
 import java.util.Objects;
 
+/**
+ * High level representation of Network abstraction layer (NAL) units.
+ * @author Matija
+ *
+ */
 public class NalUnit {
 	
+	/**
+	 * Type of the nal unit.
+	 * @author Matija
+	 *
+	 */
 	public enum NalUnitType {
 		CODED_SLICE_NON_IDR ("Coded slice of a non-IDR picture"),
 		CODED_SLICE_IDR ("Coded slice of an IDR picture"),
@@ -37,6 +47,11 @@ public class NalUnit {
 	
 	private NalUnitType type;
 	
+	/**
+	 * Creates and initializes the nal unit
+	 * @param nalData nal unit in the raw byte array form
+	 * @param nalDataLen length of the nal unit in bytes
+	 */
 	public NalUnit(byte[] nalData, int nalDataLen) {
 		if(nalData==null) throw new NullPointerException();
 		
@@ -44,6 +59,9 @@ public class NalUnit {
 		init();
 	}
 
+	/**
+	 * Initializes the nal unit
+	 */
 	private void init() {
 		nalUnitHeader = data[0];
 		forbiddenZeroBit = (nalUnitHeader & 0x80) != 0;
@@ -80,26 +98,50 @@ public class NalUnit {
 		}
 	}
 	
+	/**
+	 * Returns the data of the nal unit (raw nal unit in the byte array form)
+	 * @return nal unit as byte array
+	 */
 	public byte[] getData() {
 		return Arrays.copyOf(data, data.length);
 	}
 	
+	/**
+	 * Returns the nal unit header
+	 * @return the nal unit header
+	 */
 	public byte getNalUnitHeader() {
 		return nalUnitHeader;
 	}
 	
+	/**
+	 * Returns true iff forbiddenZeroBit is set to 1, false otherwise
+	 * @return true iff forbiddenZeroBit is set to 1, false otherwise
+	 */
 	public boolean isForbiddenZeroBit() {
 		return forbiddenZeroBit;
 	}
 	
+	/**
+	 * Returns the nal unit reference indicator
+	 * @return the nal unit reference indicator
+	 */
 	public byte getNalRefIdc() {
 		return nalRefIdc;
 	}
 	
+	/**
+	 * Returns the nal unit type
+	 * @return the nal unit type
+	 */
 	public byte getNalUnitType() {
 		return nalUnitType;
 	}
 	
+	/**
+	 * Returns the nal unit type
+	 * @return the nal unit type
+	 */
 	public NalUnitType getType() {
 		return type;
 	}

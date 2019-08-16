@@ -3,8 +3,36 @@ package hr.matija.rtpStreamer.rtp;
 import java.util.Arrays;
 import java.util.Objects;
 
+/**
+ * Utility for creating and parsing RTP packets and RTP headers.
+ * <a href="https://tools.ietf.org/html/rfc3550">RTP Specification</a>
+ * @author Matija
+ *
+ */
 public class RTPUtil {
 
+	/**
+	 * Creates a basic RTP header and returns it as a byte array.
+	 * @param version version of the RTP standard
+	 * @param padding true if RTP payload has padding, false otherwise
+	 * @param extension true if RTP header has extension, false otherwise
+	 * @param cc CSRC count => contains the number of CSRC identifiers that follow the fixed header
+	 * @param marker the interpretation of the marker is defined by a profile
+	 * @param payloadType identifies the format of the RTP payload and determines its interpretation by the application
+	 * @param seqNum increments by one for each RTP data packet sent, and may be used by the receiver to detect packet loss and to
+      		         restore packet sequence.  The initial value of the sequence number
+      				 SHOULD be random (unpredictable) to make known-plaintext attacks
+     				 on encryption more difficult
+	 * @param timestamp The timestamp reflects the sampling instant of the first octet in
+      					the RTP data packet. The sampling instant MUST be derived from a
+      					clock that increments monotonically and linearly in time to allow
+      					synchronization and jitter calculations. The initial value of the timestamp SHOULD be random.
+	 * @param SSRC The SSRC field identifies the synchronization source.  This
+      			   identifier SHOULD be chosen randomly, with the intent that no two
+      			   synchronization sources within the same RTP session will have the
+      			   same SSRC identifier.
+	 * @return RTP header constructed from the given parameters as byte array
+	 */
 	public static byte[] constructBasicHeaderRTP(byte version, boolean padding, boolean extension,
 												byte cc, boolean marker, byte payloadType, short seqNum,
 												int timestamp, int SSRC) {
@@ -32,6 +60,11 @@ public class RTPUtil {
 		return header;
 	}
 	
+	/**
+	 * Creates a basic RTP header and returns it as a byte array.
+	 * @param header object containing all information about an RTP header
+	 * @return RTP header constructed from the given RTPheader object as byte array
+	 */
 	public static byte[] constructBasicHeaderRTP(RTPheader header) {
 		return constructBasicHeaderRTP(header.version, 
 										header.padding, 
@@ -44,6 +77,11 @@ public class RTPUtil {
 										header.SSRC);
 	}
 	
+	/**
+	 * Parses an RTP header and returns it as an RTPheader object containing all parsed information.
+	 * @param data raw RTP header
+	 * @return object populated with information parsed from the raw RTP header
+	 */
 	public static RTPheader parseBasicHeaderRTP(byte[] data) {
 		RTPheader header = new RTPheader();
 		
@@ -60,6 +98,11 @@ public class RTPUtil {
 		return header;
 	}
 	
+	/**
+	 * Crates an RTP packet as an array of bytes from RTPpacket object
+	 * @param packet RTPpacket object which needs to be converted into byte array
+	 * @return RTP packet as an array of bytes
+	 */
 	public static byte[] createRTPpacket(RTPpacket packet) {
 		byte[] pack = constructBasicHeaderRTP(packet.header);
 		int headerSize = pack.length;
@@ -72,24 +115,47 @@ public class RTPUtil {
 		return pack;
 	}
 	
+	/**
+	 * Parses an RTP packet and returns it a an RTPpacket object
+	 * @param packet raw packet which needs to be parsed
+	 * @return RTPpacket object parsed from given raw RTP packet data
+	 */
 	public static RTPpacket parseBasicRTPpakcet(byte[] packet) {
 		return new RTPpacket(parseBasicHeaderRTP(packet), Arrays.copyOfRange(packet, 12, packet.length));
 	}
 	
+	/**
+	 * Class RTPpacket represents an RTP packet with header and payload
+	 * @author Matija
+	 *
+	 */
 	public static class RTPpacket {
 		
 		private RTPheader header;
 		private byte[] payload;
 		
+		/**
+		 * Initializes an RTPpacket object
+		 * @param header rtp header
+		 * @param payload rtp payload
+		 */
 		public RTPpacket(RTPheader header, byte[] payload) {
 			this.header = header;
 			this.payload = payload;
 		}
 
+		/**
+		 * Returns RTP header
+		 * @return RTP header
+		 */
 		public RTPheader getHeader() {
 			return header;
 		}
 
+		/**
+		 * Returns RTP payload
+		 * @return RTP payload
+		 */
 		public byte[] getPayload() {
 			return payload;
 		}
@@ -117,6 +183,11 @@ public class RTPUtil {
 		
 	}
 	
+	/**
+	 * Class RTPheader represents an RTP header with basic information (no extension is supported)
+	 * @author Matija
+	 *
+	 */
 	public static class RTPheader {
 		
 		private byte version;
@@ -129,6 +200,27 @@ public class RTPUtil {
 		int timestamp;
 		private int SSRC;
 		
+		/**
+		 * Initializes RTPheader object
+		 * @param version version of the RTP standard
+		 * @param padding true if RTP payload has padding, false otherwise
+		 * @param extension true if RTP header has extension, false otherwise
+		 * @param cc CSRC count => contains the number of CSRC identifiers that follow the fixed header
+		 * @param marker the interpretation of the marker is defined by a profile
+		 * @param payloadType identifies the format of the RTP payload and determines its interpretation by the application
+		 * @param seqNum increments by one for each RTP data packet sent, and may be used by the receiver to detect packet loss and to
+	      		         restore packet sequence.  The initial value of the sequence number
+	      				 SHOULD be random (unpredictable) to make known-plaintext attacks
+	     				 on encryption more difficult
+		 * @param timestamp The timestamp reflects the sampling instant of the first octet in
+	      					the RTP data packet. The sampling instant MUST be derived from a
+	      					clock that increments monotonically and linearly in time to allow
+	      					synchronization and jitter calculations. The initial value of the timestamp SHOULD be random.
+		 * @param SSRC The SSRC field identifies the synchronization source.  This
+	      			   identifier SHOULD be chosen randomly, with the intent that no two
+	      			   synchronization sources within the same RTP session will have the
+	      			   same SSRC identifier.
+		 */
 		public RTPheader(byte version, boolean padding, boolean extension, byte cc, boolean marker, byte payloadType,
 				short seqNum, int timestamp, int sSRC) {
 			this.version = version;
@@ -146,38 +238,74 @@ public class RTPUtil {
 			
 		}
 
+		/**
+		 * Returns the version of the RTP standard
+		 * @return the version of the RTP standard
+		 */
 		public byte getVersion() {
 			return version;
 		}
 
+		/**
+		 * Returns true if RTP payload has padding, false otherwise
+		 * @return true if RTP payload has padding, false otherwise
+		 */
 		public boolean isPadding() {
 			return padding;
 		}
 
+		/**
+		 * Returns true if RTP header has extension, false otherwise
+		 * @return true if RTP header has extension, false otherwise
+		 */
 		public boolean isextension() {
 			return extension;
 		}
 
+		/**
+		 * Returns the number of CSRC identifiers that follow the fixed header
+		 * @return the number of CSRC identifiers that follow the fixed header
+		 */
 		public byte getCc() {
 			return cc;
 		}
 
+		/**
+		 * Returns true if marker bit is set to 1, false otherwise
+		 * @return true if marker bit is set to 1, false otherwise
+		 */
 		public boolean ismarker() {
 			return marker;
 		}
 
+		/**
+		 * Returns payload type (identifier for the format of the RTP payload)
+		 * @return payload type (identifier for the format of the RTP payload)
+		 */
 		public byte getPayloadType() {
 			return payloadType;
 		}
 
+		/**
+		 * Returns sequence number of the RTP packet
+		 * @return sequence number of the RTP packet
+		 */
 		public short getSeqNum() {
 			return seqNum;
 		}
 
+		/**
+		 * Returns timestamp of the RTP packet
+		 * @return timestamp of the RTP packet
+		 */
 		public int getTimestamp() {
 			return timestamp;
 		}
 
+		/**
+		 * Returns the synchronization source identifier.
+		 * @return the synchronization source identifier.
+		 */
 		public int getSSRC() {
 			return SSRC;
 		}

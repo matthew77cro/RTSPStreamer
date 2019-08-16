@@ -6,6 +6,11 @@ import java.util.Scanner;
 import hr.matija.rtpStreamer.commandLine.ServerCmd;
 import hr.matija.rtpStreamer.server.ServerImpl;
 
+/**
+ * Main class - the start point of the RTP streamer application
+ * @author Matija
+ *
+ */
 public class Main {
 	
 	public static void main(String[] args) {

@@ -10,7 +10,11 @@ public class StopCommand implements Command {
 
 	@Override
 	public CommandResult execute(String command[], Server server, Map<String, Command> allCommands) {
-		server.stopStream();
+		if(server.isStreaming()) {
+			server.stopStream();
+		} else {
+			System.out.printf("Cannot stop the stream if it is not running!%nType 'running' for checking the running status.%n");
+		}
 		return CommandResult.CONTINUE;
 	}
 

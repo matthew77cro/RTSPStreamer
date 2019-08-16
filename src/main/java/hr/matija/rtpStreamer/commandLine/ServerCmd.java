@@ -19,6 +19,11 @@ import hr.matija.rtpStreamer.commandLine.commands.StopCommand;
 import hr.matija.rtpStreamer.commandLine.commands.StreamCommand;
 import hr.matija.rtpStreamer.server.Server;
 
+/**
+ * Models a command line for the rtp h264 server
+ * @author Matija
+ *
+ */
 public class ServerCmd {
 	
 	private Scanner sc;
@@ -26,6 +31,11 @@ public class ServerCmd {
 	
 	private Server server;
 	
+	/**
+	 * Initializes the server command line
+	 * @param server server on which the command line is running
+	 * @param sc scanner for reading the user input
+	 */
 	public ServerCmd(Server server, Scanner sc) {
 		this.server = server;
 		
@@ -35,6 +45,9 @@ public class ServerCmd {
 		initCommands();
 	}
 	
+	/**
+	 * Creates and initializes all available commands
+	 */
 	private void initCommands() {
 		commands.put("exit", new ExitCommand());
 		commands.put("stop", new StopCommand());
@@ -52,6 +65,10 @@ public class ServerCmd {
 		commands = Collections.unmodifiableMap(commands);
 	}
 
+	/**
+	 * Starts the command line. Blocking call (this method blocks
+	 * the caller thread).
+	 */
 	public void start() {
 		
 		System.out.println("Welcome to h264 rtp server 1.0!");
