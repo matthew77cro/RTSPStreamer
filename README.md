@@ -25,12 +25,12 @@
 
 Useful links:
 
-<a href="https://tools.ietf.org/html/rfc768">UDP Specification</a>
-<a href="https://tools.ietf.org/html/rfc3550">RTP Specification</a>
-<a href="https://tools.ietf.org/html/rfc6184#ref-1">RTP payload for H.264 specifiction</a>
-<a href="https://www.quora.com/What-is-the-difference-between-an-I-Frame-and-a-Keyframe-in-video-encoding">Kay frame explaination</a>
-<a href="https://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/">H.264 nal unit specification</a>
-<a href="https://stackoverflow.com/questions/22626021/idr-and-non-idr-difference">IDR frames</a>
-<a href="https://en.wikipedia.org/wiki/Network_Abstraction_Layer">NAL Units Wiki page</a>
-<a href="https://cardinalpeak.com/blog/worlds-smallest-h-264-encoder/">World's samllest h.264 encoder</a>
-<a href="https://cardinalpeak.com/blog/the-h-264-sequence-parameter-set/">H.264 SPS</a>
+<a href="https://tools.ietf.org/html/rfc768">UDP Specification</a> <br>
+<a href="https://tools.ietf.org/html/rfc3550">RTP Specification</a> <br>
+<a href="https://tools.ietf.org/html/rfc6184#ref-1">RTP payload for H.264 specifiction</a> <br>
+<a href="https://www.quora.com/What-is-the-difference-between-an-I-Frame-and-a-Keyframe-in-video-encoding">Kay frame explaination</a> <br>
+<a href="https://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/">H.264 nal unit specification</a> <br>
+<a href="https://stackoverflow.com/questions/22626021/idr-and-non-idr-difference">IDR frames</a> <br>
+<a href="https://en.wikipedia.org/wiki/Network_Abstraction_Layer">NAL Units Wiki page</a> <br>
+<a href="https://cardinalpeak.com/blog/worlds-smallest-h-264-encoder/">World's samllest h.264 encoder</a> <br>
+<a href="https://cardinalpeak.com/blog/the-h-264-sequence-parameter-set/">H.264 SPS</a> <br>
