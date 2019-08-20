@@ -16,9 +16,9 @@
 <li>Open output.h264 in a hex editor (recommendation : <a href="https://mh-nexus.de/en/hxd/">HxD</a>)</li>
 <li>Remove the first NAL unit if it is AUD (that is, if the first NAL unit is&nbsp;<br /><code>0000 0109 10</code><br />remove it</li>
 <li>Start the application:<br /><code>java -cp hr.matija.rtpStreamer.main.Main <em>pathToTheConfigFile</em></code>&nbsp;</li>
-<li>Setup the server : setfps, setsrc, setdest... (type help for list of all commands, type "man commandName" for help about some command named commandName</li>
+<li>Setup the server : setfps, setsrc, setdest... (type "help" for list of all commands, type "man commandName" for help about some command named commandName)</li>
 <li>Generate the sdp file from the server command line</li>
 <li>Open the sdp file on the receiver end (VLC Media Player, ffplay..)</li>
 <li>Type stream in the server command line</li>
 </ol>
-<p>And that is it! Your stream should now be running...</p>
+<p>And that is it! Your stream should now be running... Some screenshots of the process have been included in the Pics directory.</p>
