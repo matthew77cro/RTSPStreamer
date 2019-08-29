@@ -5,7 +5,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>hr.matija.rtp</groupId>
-  <artifactId>rtpStream</artifactId>
+  <artifactId>rtspStreamer</artifactId>
   <version>1.0</version>
 
   <!-- configuration of basic properties -->

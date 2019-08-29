@@ -1,0 +1,17 @@
+# This is a resource descriptor
+# It maps resources that server will be serving to the uri paths
+#
+#
+# RESOURCE_UNIQUE_ID	PATH_TO_THE_RESOURCE	URI_MAPPING	FPS
+# Columns are separated by tabs ('\t')
+#
+#
+# Example:
+# 1000 sample_1080p_60fps.h264	samplefullhd	60
+# => video named "sample_1080p_60fps.h264" will be mapped to rtsp://serverIP:port/samplefullhd
+#    and resource is a video that needs to be played at 60 fps; id
+#	 of this resource is 1000
+#
+# Also, lines that start with '#' are comments (they will be ignored)
+1001	sample_720_60fps.h264	samplehd60	60
+1002	sample_1080_60fps.h264	samplefullhd60	60

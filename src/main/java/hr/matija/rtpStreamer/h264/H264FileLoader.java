@@ -20,6 +20,8 @@ public class H264FileLoader implements H264Loader{
 	
 	private NalUnit nextNal;
 	
+	private boolean firstNal = true;
+	
 	/**
 	 * Initializes the h264 file loader
 	 * @param h264File path to the raw h264 file in the annex B format (byte stream of nal units
@@ -36,7 +38,7 @@ public class H264FileLoader implements H264Loader{
 	
 
 	@Override
-	public boolean nextNalUnit() {
+	public boolean nextNalUnit() throws IOException {
 		
 		byte[] data = new byte[kibi64];
 		int dataLen = 0;
@@ -44,11 +46,8 @@ public class H264FileLoader implements H264Loader{
 		int state = 0;
 outer:	while(true) {
 			int next;
-			try {
-				next = bis.read();
-			} catch (Exception ex) {
-				throw new RuntimeException(ex);
-			}
+			next = bis.read();
+
 			if(next==-1) break;
 			
 			byte nextByte = (byte) next;
@@ -60,17 +59,19 @@ outer:	while(true) {
 						break;
 				case 2: if(nextByte!=0 && nextByte!=1) {state = 0; break;}
 						if(nextByte==0) {
-							try {
-								next = bis.read(); //eat the next 0x1
-							} catch (Exception ex) {
-								throw new RuntimeException(ex);
-							}
+							next = bis.read(); //eat the next 0x1
 							if(next!=1) throw new IllegalStateException("Unexpected byte sequence 0x00 00 00 00");
 						}
 						dataLen-=3;
 						break outer;
 			}
 		}
+		
+		if(dataLen==0 && firstNal) {
+			firstNal = false;
+			return nextNalUnit();
+		}
+		firstNal = false;
 		
 		if(dataLen!=0) {
 			nextNal = new NalUnit(data, dataLen);
@@ -88,10 +89,7 @@ outer:	while(true) {
 		return nextNal;
 	}
 	
-	/**
-	 * Close the loader. MUST be called when done by the loader.
-	 * @throws IOException if an I/O error occurs
-	 */
+	@Override
 	public void close() throws IOException {
 		bis.close();
 	}
