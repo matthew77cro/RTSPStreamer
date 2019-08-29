@@ -7,7 +7,7 @@
 <li>Data should be organized in a&nbsp;particular way so that my code knows how to parse that data : files should be organized using Annex B format and each access unit MUST have AUD - access unit delimiter; also, first NAL unit MUST NOT be AUD (if the encoder places the AUD as the first NAL unit, you should open the file in the hex editor and remove that NAL unit)</li>
 <li>Receiving end is not implemented and for that VLC Media Player, ffplay or similar software should be used</li>
 </ul>
-<p><span style="text-decoration: line-through;">Also note that this server is not RTSP based, but it is pure RTP server. This means that receiving end will not know what type of data it is getting from this server. Therefore, an .sdp file should be opened on that end so that player knows how to decode that data.</span></p>
+<p><strike>Also note that this server is not RTSP based, but it is pure RTP server. This means that receiving end will not know what type of data it is getting from this server. Therefore, an .sdp file should be opened on that end so that player knows how to decode that data.</strike></p>
 <p>RTSP has been implemented! It is now easier than ever to connect to this server!&nbsp;</p>
 <p>All Java code is documented and comments have been added so that code is more radable.</p>
 <p>Here is an example of starting the server:</p>
