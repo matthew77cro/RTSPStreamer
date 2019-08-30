@@ -75,6 +75,10 @@ public class H264RtspReqHandlerCollection {
 		return handlers.size();
 	}
 	
+	public H264RtpStreamWorkerCollection getStreamWorkerCollection() {
+		return streamWorkers;
+	}
+	
 	/**
 	 * Rtsp connection handler for handling requests over tcp
 	 * @author Matija
@@ -196,9 +200,9 @@ public class H264RtspReqHandlerCollection {
 				throw new RuntimeException(e);
 			} finally {
 				if(currentStreamWorker!=null) streamWorkers.removeWorker(currentStreamWorker.getId());
-				isRunning.set(false);
-				removeHandler(this.id);
+				handlers.remove(this.id);
 				System.out.println("Connection closed: " + s.getInetAddress());
+				isRunning.set(false);
 			}
 		}
 		

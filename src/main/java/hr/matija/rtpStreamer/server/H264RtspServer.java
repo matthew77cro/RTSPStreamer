@@ -176,6 +176,8 @@ public class H264RtspServer {
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			} finally {
+				cleaner.stop();
+				clean.run();
 				isRunning.set(false);
 				System.out.println("Server stop");
 			}
@@ -186,7 +188,6 @@ public class H264RtspServer {
 	public synchronized void stop() {
 		stopReq.set(true);
 		while(isRunning.get());
-		cleaner.stop();
 	}
 
 	public boolean isRunning() {
@@ -196,21 +197,41 @@ public class H264RtspServer {
 	public synchronized void reloadResources() throws IOException {
 		if(isRunning.get()) throw new RuntimeException("Cannot reload resources while the server is running!");
 		resources.loadResources();
+		System.out.println("RELOADED RESOURCES");
+		System.out.println("--------RESOURCES---------");
+		for(var res : resources.getResources()) {
+			System.out.println(res);
+		}
+		System.out.println("--------------------------");
 	}
 	
 	public void cleanerStart() {
-		cleaner = new Timer(10_000, (e) -> {
-			System.out.println("Running connections: " + reqHandlers.getActiveConnectionCount() + "\tRunning workers:" + workers.getActiveWorkerCount());
-			List<H264RtspReqHandler> cons = new ArrayList<>(reqHandlers.getAllHandlers());
-			for(var connection : cons) {
-				if(System.currentTimeMillis() - connection.getLastRequestTimestamp() > 60_000) {
-					connection.close();
-					reqHandlers.removeHandler(connection.getId());
-					System.out.println("Cleaner removed: " + connection.getId() + " " + connection.getSocket().getInetAddress());
-				}
-			}
-		});
+		cleaner = new Timer(10_000, (e) -> clean.run());
 		cleaner.start();
+	}
+	
+	private Runnable clean = () -> {
+		System.out.println("Running connections: " + reqHandlers.getActiveConnectionCount() + "\tRunning workers:" + workers.getActiveWorkerCount());
+		List<H264RtspReqHandler> cons = new ArrayList<>(reqHandlers.getAllHandlers());
+		for(var connection : cons) {
+			if(System.currentTimeMillis() - connection.getLastRequestTimestamp() > 60_000) {
+				connection.close();
+				reqHandlers.removeHandler(connection.getId());
+				System.out.println("Cleaner removed: " + connection.getId() + " " + connection.getSocket().getInetAddress());
+			}
+		}
+	};
+
+	public void setPackageDropRate(double dropRate) {
+		reqHandlers.getStreamWorkerCollection().setPackageDropRate(dropRate);
+	}
+
+	public void setPackageMultiplier(int multiplier) {
+		reqHandlers.getStreamWorkerCollection().setPackageMultiplier(multiplier);
+	}
+
+	public void setAllowDropAll(boolean value) {
+		reqHandlers.getStreamWorkerCollection().setAllowDropAll(value);
 	}
 	
 }

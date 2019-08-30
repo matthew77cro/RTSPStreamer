@@ -21,6 +21,10 @@ public class H264RtpStreamWorkerCollection {
 	private long clockHz = 90_000;
 	private byte payloadType = 96;
 	
+	private double packageDropRate = 0;
+	private int packageMultiplier = 1;
+	private boolean allowDropAll = true;
+	
 	private Map<Integer, H264RtpStreamWorker> workers = new HashMap<>();
 	
 	public H264RtpStreamWorkerCollection() {
@@ -39,6 +43,30 @@ public class H264RtpStreamWorkerCollection {
 		return payloadType;
 	}
 	
+	public double getPackageDropRate() {
+		return packageDropRate;
+	}
+
+	public void setPackageDropRate(double packageDropRate) {
+		this.packageDropRate = packageDropRate/100;
+	}
+
+	public int getPackageMultiplier() {
+		return packageMultiplier;
+	}
+
+	public void setPackageMultiplier(int packageMultiplier) {
+		this.packageMultiplier = packageMultiplier;
+	}
+
+	public boolean isDropAllAllowed() {
+		return allowDropAll;
+	}
+	
+	public void setAllowDropAll(boolean allowDropAll) {
+		this.allowDropAll = allowDropAll;
+	}
+
 	public synchronized int makeWorker(Resource resource, SocketAddress address, short initSeqNum, int initTimestamp, int ssrc) {
 		int id;
 		do {
@@ -123,6 +151,8 @@ public class H264RtpStreamWorkerCollection {
 
 		@Override
 		public void run() {
+			if(isStreaming.get()) throw new IllegalStateException("Already streaming!");
+			isStreaming.set(true);
 			System.out.println("New stream: " + resource.getName() + " " + address.toString());
 			try (DatagramSocket dSocket = new DatagramSocket();
 					H264FileLoader loader = new H264FileLoader(resource.getPath())){
@@ -145,7 +175,12 @@ public class H264RtpStreamWorkerCollection {
 					byte UDPpayload[] = RTPUtil.createRTPpacket(new RTPpacket(header, naluData));
 					
 					DatagramPacket packet = new DatagramPacket(UDPpayload, UDPpayload.length, address);
-					dSocket.send(packet);
+					for(int cnt=0; cnt<packageMultiplier; cnt++) {
+						// only send this packet if : it is decided by the packet drop rate OR
+						//						 	  we do not allow all packets to be dropped AND this is not a NON-IDR packet
+						if(Math.random()>=packageDropRate || (!allowDropAll && nalu.getType()!=NalUnitType.CODED_SLICE_NON_IDR))
+							dSocket.send(packet);
+					}
 					
 					if(end) break;
 					seqNum++;
@@ -157,7 +192,7 @@ public class H264RtpStreamWorkerCollection {
 						
 						long sleep = this.frameTime - (System.currentTimeMillis() - start); //time between two frames - time passed for sending the frame
 						Thread.sleep(sleep < 0 ? 0 : sleep); //if time passed for sending the frame is greater than time between two frames, then don't sleep
-						
+												
 						while(pause.get() && !stopReq.get()); // if the stream is paused
 						
 						start = System.currentTimeMillis();
@@ -168,9 +203,9 @@ public class H264RtpStreamWorkerCollection {
 			} catch (Exception ex) {
 				System.err.println("Unexpected exception " + ex.getClass().getName() + " : " + ex.getMessage());
 			} finally {
-				isStreaming.set(false);
-				removeWorker(this.id);
+				workers.remove(this.id);
 				System.out.println("Closed stream: " + resource.getName() + " " + address.toString());
+				isStreaming.set(false);
 			}
 		}
 		
