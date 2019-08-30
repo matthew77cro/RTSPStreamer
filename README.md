@@ -1,4 +1,5 @@
 # RTSP Streamer H264
+<img src="https://raw.githubusercontent.com/matthew77cro/RTSPStreamer/master/screenshot.png"/><br/>
 <p>This project is created for educational purposes only.</p>
 <p>By making this RTSP H264 Streamer my goal was to learn how H264 codec encodes and decodes video data and also how RTP protocol (used for transfering data with real-time properties) encapsulates and transfers the encoded byte stream.</p>
 <p>This project is made in Java from the scratch meaning :</p>
