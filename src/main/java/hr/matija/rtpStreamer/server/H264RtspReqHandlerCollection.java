@@ -8,27 +8,34 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import hr.matija.rtpStreamer.console.ConsoleWriter;
 import hr.matija.rtpStreamer.rtsp.RTSPUtil;
 import hr.matija.rtpStreamer.rtsp.UriParser;
 import hr.matija.rtpStreamer.rtsp.RTSPUtil.RTSPRequest;
 import hr.matija.rtpStreamer.server.H264RtpStreamWorkerCollection.H264RtpStreamWorker;
 import hr.matija.rtpStreamer.server.H264RtspResources.Resource;
 
-public class H264RtspReqHandlerCollection {
+public class H264RtspReqHandlerCollection{
 	
 	private H264RtpStreamWorkerCollection streamWorkers;
 	private H264RtspResources resources;
+	private ConsoleWriter writer;
 	
 	private Map<Integer, H264RtspReqHandler> handlers = new HashMap<>();
 	private Map<InetAddress, H264RtspReqHandler> handlers_inet = new HashMap<>();
 	
-	public H264RtspReqHandlerCollection(H264RtpStreamWorkerCollection streamWorkers, H264RtspResources resources) {
+	private Set<H264RtspReqHandlerCollectionListener> listeners = new HashSet<>();
+	
+	public H264RtspReqHandlerCollection(H264RtpStreamWorkerCollection streamWorkers, H264RtspResources resources, ConsoleWriter writer) {
 		this.streamWorkers = Objects.requireNonNull(streamWorkers);
 		this.resources = Objects.requireNonNull(resources);
+		this.writer = Objects.requireNonNull(writer);
 	}
 
 	public synchronized int makeHandler(Socket s, int ssrc) {
@@ -40,6 +47,9 @@ public class H264RtspReqHandlerCollection {
 		var handler = new H264RtspReqHandler(id, s, ssrc, streamWorkers, resources);
 		handlers.put(id, handler);
 		handlers_inet.put(s.getInetAddress(), handler);
+		for(var l : listeners) {
+			l.handlerAdded(handler);
+		}
 		return id;
 	}
 	
@@ -55,13 +65,19 @@ public class H264RtspReqHandlerCollection {
 		var handler =  handlers.remove(id);
 		if(handler==null) return false;
 		handlers_inet.remove(handler.s.getInetAddress());
-		handler.close();
+		if(handler.isRunning()) handler.close();
+		for(var l : listeners) {
+			l.handlerRemoved(handler);
+		}
 		return true;
 	}
 	
 	public synchronized void closeAllConections() {
 		for(var handler : handlers.values()) {
 			handler.close();
+			for(var l : listeners) {
+				l.handlerRemoved(handler);
+			}
 		}
 		handlers.clear();
 		handlers_inet.clear();
@@ -77,6 +93,14 @@ public class H264RtspReqHandlerCollection {
 	
 	public H264RtpStreamWorkerCollection getStreamWorkerCollection() {
 		return streamWorkers;
+	}
+	
+	public void addListener(H264RtspReqHandlerCollectionListener listener) {
+		listeners.add(listener);
+	}
+	
+	public void removeListener(H264RtspReqHandlerCollectionListener listener) {
+		listeners.remove(listener);
 	}
 	
 	/**
@@ -123,9 +147,9 @@ public class H264RtspReqHandlerCollection {
 		@Override
 		public void run() {
 			if(isRunning.get()) throw new IllegalStateException("Already running!");
-			System.out.println("New connection: " + s.getInetAddress());
 			isRunning.set(true);
 			stopReq.set(false);
+			writer.writeInfo("New connection: " + s.getInetAddress());
 			
 			try (BufferedInputStream bis = new BufferedInputStream(s.getInputStream());
 					BufferedOutputStream bos = new BufferedOutputStream(s.getOutputStream())){
@@ -160,7 +184,7 @@ public class H264RtspReqHandlerCollection {
 							Resource r = resources.getResourceForUri(reqResource);
 							
 							if(r==null) {
-								System.out.println("Not found: " + reqResource);
+								writer.writeError("Not found: " + reqResource);
 								bos.write(RTSPUtil.createRTSPResponse(req.getVersion(), 404, "Not Found", kvpairs, null).getBytes());
 								bos.flush();
 								break;
@@ -200,9 +224,9 @@ public class H264RtspReqHandlerCollection {
 				throw new RuntimeException(e);
 			} finally {
 				if(currentStreamWorker!=null) streamWorkers.removeWorker(currentStreamWorker.getId());
-				handlers.remove(this.id);
-				System.out.println("Connection closed: " + s.getInetAddress());
+				writer.writeInfo("Connection closed: " + s.getInetAddress());
 				isRunning.set(false);
+				removeHandler(this.id);
 			}
 		}
 		
@@ -220,6 +244,11 @@ public class H264RtspReqHandlerCollection {
 		
 		public Socket getSocket() {
 			return s;
+		}
+		
+		@Override
+		public String toString() {
+			return id + " " + s.getInetAddress().getHostAddress();
 		}
 		
 	}

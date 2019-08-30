@@ -13,11 +13,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.Timer;
 
+import hr.matija.rtpStreamer.console.ConsoleWriter;
 import hr.matija.rtpStreamer.server.H264RtspReqHandlerCollection.H264RtspReqHandler;
 
 /**
@@ -62,6 +64,8 @@ import hr.matija.rtpStreamer.server.H264RtspReqHandlerCollection.H264RtspReqHand
  */
 public class H264RtspServer {
 	
+	private ConsoleWriter writer;
+	
 	private static byte payloadType = 96;
 	private static int clockHz = 90_000;
 	private static int ssrc = (int) (Math.random() * Integer.MAX_VALUE);
@@ -85,8 +89,9 @@ public class H264RtspServer {
 	 * @param configFilePath
 	 * @throws IOException
 	 */
-	public H264RtspServer(String configFilePath) throws IOException {
-		configFile = Paths.get(configFilePath);
+	public H264RtspServer(String configFilePath, ConsoleWriter writer) throws IOException {
+		this.configFile = Paths.get(configFilePath);
+		this.writer = Objects.requireNonNull(writer);
 		
 		Properties prop = new Properties();
 		InputStream in = Files.newInputStream(configFile);
@@ -113,41 +118,40 @@ public class H264RtspServer {
 		in.close();
 		
 		this.resources = new H264RtspResources(resourceDescriptor, webroot);
-		this.workers = new H264RtpStreamWorkerCollection(clockHz, payloadType);
-		this.reqHandlers = new H264RtspReqHandlerCollection(workers, resources);
+		this.workers = new H264RtpStreamWorkerCollection(clockHz, payloadType, writer);
+		this.reqHandlers = new H264RtspReqHandlerCollection(workers, resources, writer);
 		
 		cleanerStart();
-		printInfo();
 	}
 
-	private void printInfo() throws SocketException {
+	public void printInfo() throws SocketException {
 		
-		System.out.println("RTSP SERVER");
-		System.out.println("Config file: " + configFile.toAbsolutePath());
+		writer.writeInfo("RTSP SERVER");
+		writer.writeInfo("Config file: " + configFile.toAbsolutePath());
 		
-		System.out.println("----------------------------------");
-		System.out.println("Server addresses: ");
+		writer.writeInfo("----------------------------------");
+		writer.writeInfo("Server addresses: ");
 		var en = NetworkInterface.getNetworkInterfaces();
 		while(en.hasMoreElements()) {
 			NetworkInterface n = (NetworkInterface) en.nextElement();
 			var ee = n.getInetAddresses();
 			while (ee.hasMoreElements()) {
 				InetAddress i = (InetAddress) ee.nextElement();
-				System.out.println(i.getHostAddress());
+				writer.writeInfo(i.getHostAddress());
 			}
 		}
-		System.out.println("----------------------------------");
+		writer.writeInfo("----------------------------------");
 		
-		System.out.println("Server port: " + serverPort);
-		System.out.println("Webroot: " + webroot.toAbsolutePath());
-		System.out.println("Resource descriptor: " + resourceDescriptor.toAbsolutePath());
-		System.out.println();
-		System.out.println("--------RESOURCES---------");
+		writer.writeInfo("Server port: " + serverPort);
+		writer.writeInfo("Webroot: " + webroot.toAbsolutePath());
+		writer.writeInfo("Resource descriptor: " + resourceDescriptor.toAbsolutePath());
+		writer.writeInfo("");
+		writer.writeInfo("--------RESOURCES---------");
 		for(var res : resources.getResources()) {
-			System.out.println(res);
+			writer.writeInfo(res.toString());
 		}
-		System.out.println("--------------------------");
-		System.out.println();
+		writer.writeInfo("--------------------------");
+		writer.writeln("");
 	}
 	
 	public synchronized void start() {
@@ -159,7 +163,7 @@ public class H264RtspServer {
 			
 			try (ServerSocket socket = new ServerSocket(serverPort)){
 				
-				System.out.println("Server run");
+				writer.writeInfo("Server run");
 				socket.setSoTimeout(5000);
 				while(!stopReq.get()) {
 					Socket s;
@@ -179,7 +183,7 @@ public class H264RtspServer {
 				cleaner.stop();
 				clean.run();
 				isRunning.set(false);
-				System.out.println("Server stop");
+				writer.writeInfo("Server stop");
 			}
 			
 		}).start();
@@ -197,12 +201,12 @@ public class H264RtspServer {
 	public synchronized void reloadResources() throws IOException {
 		if(isRunning.get()) throw new RuntimeException("Cannot reload resources while the server is running!");
 		resources.loadResources();
-		System.out.println("RELOADED RESOURCES");
-		System.out.println("--------RESOURCES---------");
+		writer.writeInfo("RELOADED RESOURCES");
+		writer.writeInfo("--------RESOURCES---------");
 		for(var res : resources.getResources()) {
-			System.out.println(res);
+			writer.writeInfo(res.toString());
 		}
-		System.out.println("--------------------------");
+		writer.writeInfo("--------------------------");
 	}
 	
 	public void cleanerStart() {
@@ -211,13 +215,13 @@ public class H264RtspServer {
 	}
 	
 	private Runnable clean = () -> {
-		System.out.println("Running connections: " + reqHandlers.getActiveConnectionCount() + "\tRunning workers:" + workers.getActiveWorkerCount());
+		writer.writeInfo("Running connections: " + reqHandlers.getActiveConnectionCount() + "\tRunning workers:" + workers.getActiveWorkerCount());
 		List<H264RtspReqHandler> cons = new ArrayList<>(reqHandlers.getAllHandlers());
 		for(var connection : cons) {
 			if(System.currentTimeMillis() - connection.getLastRequestTimestamp() > 60_000) {
 				connection.close();
 				reqHandlers.removeHandler(connection.getId());
-				System.out.println("Cleaner removed: " + connection.getId() + " " + connection.getSocket().getInetAddress());
+				writer.writeInfo("Cleaner removed: " + connection.getId() + " " + connection.getSocket().getInetAddress());
 			}
 		}
 	};
@@ -232,6 +236,14 @@ public class H264RtspServer {
 
 	public void setAllowDropAll(boolean value) {
 		reqHandlers.getStreamWorkerCollection().setAllowDropAll(value);
+	}
+	
+	public H264RtspReqHandlerCollection getReqHandlers() {
+		return reqHandlers;
+	}
+	
+	public H264RtspResources getResources() {
+		return resources;
 	}
 	
 }

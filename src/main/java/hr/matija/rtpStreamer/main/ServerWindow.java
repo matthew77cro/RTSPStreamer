@@ -1,24 +1,32 @@
 package hr.matija.rtpStreamer.main;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridLayout;
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Objects;
 
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JTextArea;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.text.DefaultCaret;
 
+import hr.matija.rtpStreamer.server.H264RtspReqHandlerCollection.H264RtspReqHandler;
 import hr.matija.rtpStreamer.server.H264RtspServer;
 
 @SuppressWarnings("serial") 
@@ -39,13 +47,19 @@ public class ServerWindow extends JFrame {
 		
 		private H264RtspServer server;
 		
+		private JTextArea textArea;
+		
 		private JButton start;
 		private JButton stop;
 		private JButton reload;
+		
 		private JSpinner packageMultiplier;
 		private JSpinner packageDrop;
 		private JCheckBox allowDropAll;
 		private JButton confirmPackageChange;
+		
+		private JList<H264RtspReqHandler> list;
+		private JButton closeConnection;
 		
 		public ServerWindow(int width, int height, String title, H264RtspServer server) throws HeadlessException {
 			this.width = width;
@@ -56,22 +70,36 @@ public class ServerWindow extends JFrame {
 			this.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 			this.setSize(this.width, this.height);
 			this.setTitle(this.title);
-			this.setLayout(new BorderLayout());
 			
 			initGui();
 			initListeners();
 		}
 
 		private void initGui() {
-			
-			JLabel banner = new JLabel("RTSP Streamer 1.0");
 
-			// Set the label's font size to the newly determined size.
+			this.setLayout(new BorderLayout());
+			
+			textArea = new JTextArea();
+			DefaultCaret caret = (DefaultCaret)textArea.getCaret();
+			caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+			this.add(new JScrollPane(textArea), BorderLayout.CENTER);
+			
+			JPanel top = new JPanel(new FlowLayout());
+			JLabel banner = new JLabel("RTSP Streamer 1.0");
 			banner.setFont(new Font("Times", Font.PLAIN, 30));
+			start = new JButton("Start");
+			stop = new JButton("Stop");
+			stop.setEnabled(false);
+			reload = new JButton("Reload");
 			
-			this.add(banner, BorderLayout.PAGE_START);
+			top.add(banner);
+			top.add(start);
+			top.add(stop);
+			top.add(reload);
+			this.add(top, BorderLayout.PAGE_START);
 			
-			JPanel center = new JPanel(new GridLayout(0, 2));
+			JPanel bottom = new JPanel(new FlowLayout());
+			bottom.setBorder(BorderFactory.createLineBorder(Color.BLACK));
 			
 	        packageMultiplier = new JSpinner(new SpinnerNumberModel(1, 1, 5, 1));
 	        packageDrop = new JSpinner(new SpinnerNumberModel(0, 0, 100, 0.1));
@@ -82,31 +110,23 @@ public class ServerWindow extends JFrame {
 	        
 	        JLabel l1 = new JLabel("Package multiplier: ");
 	        l1.setToolTipText("How many times to send each RTP packet. Helps in package dropping");
-	        center.add(l1);
-	        center.add(packageMultiplier);
+	        bottom.add(l1);
+	        bottom.add(packageMultiplier);
 	        JLabel l2 = new JLabel("Package drop rate: ");
 	        l2.setToolTipText("Percentage of packets to be dropped");
-	        center.add(l2);
-	        center.add(packageDrop);
-	        center.add(new JLabel());
-	        center.add(allowDropAll);
-	        center.add(new JLabel());
-	        center.add(confirmPackageChange);
-			
-			this.add(center, BorderLayout.CENTER);
-			
-			JPanel bottom = new JPanel(new GridLayout(1, 0));
-			
-			start = new JButton("Start");
-			stop = new JButton("Stop");
-			stop.setEnabled(false);
-			reload = new JButton("Reload");
-			
-			bottom.add(start);
-			bottom.add(stop);
-			bottom.add(reload);
+	        bottom.add(l2);
+	        bottom.add(packageDrop);
+	        bottom.add(allowDropAll);
+	        bottom.add(confirmPackageChange);
 			
 			this.add(bottom, BorderLayout.PAGE_END);
+			
+			JPanel side = new JPanel(new BorderLayout());
+			list = new JList<>(new ListModelImpl(server));
+			closeConnection = new JButton("Close connection");
+			side.add(new JScrollPane(list), BorderLayout.CENTER);
+			side.add(closeConnection, BorderLayout.PAGE_END);
+			this.add(side, BorderLayout.LINE_END);
 			
 		}
 		
@@ -151,6 +171,15 @@ public class ServerWindow extends JFrame {
 				server.setAllowDropAll(allowDropAll.isSelected());
 			});
 			
+			closeConnection.addActionListener((e) -> {
+				var handler = list.getSelectedValue();
+				if(handler==null) {
+					JOptionPane.showMessageDialog(ServerWindow.this, "Nothing selected", "Error", JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+				handler.close();
+			});
+			
 			this.addWindowListener(new WindowAdapter() {				
 				@Override
 				public void windowClosing(WindowEvent e) {
@@ -166,4 +195,17 @@ public class ServerWindow extends JFrame {
 			
 		}
 		
-	}
+		public void setServer(H264RtspServer server) {
+			this.server = Objects.requireNonNull(server);
+		}
+		
+		public class JTextAreaOutputStream extends OutputStream {
+
+			@Override
+			public void write(int b) throws IOException {
+				textArea.append(new String(new byte[] {(byte) b}));
+			}
+			
+		}
+		
+}

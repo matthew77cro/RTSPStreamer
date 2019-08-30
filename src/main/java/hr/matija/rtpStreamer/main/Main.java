@@ -1,9 +1,11 @@
 package hr.matija.rtpStreamer.main;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
-import javax.swing.SwingUtilities;
-
+import hr.matija.rtpStreamer.console.ConsoleWriter;
 import hr.matija.rtpStreamer.server.H264RtspServer;
 
 /**
@@ -13,21 +15,24 @@ import hr.matija.rtpStreamer.server.H264RtspServer;
  */
 public class Main {
 	
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 		
 		if(args.length!=1) {
 			System.err.println("Expected exactly one argument! - Path to the config file");
 			return;
 		}
 
-		H264RtspServer server = new H264RtspServer(args[0]);
-		
-		SwingUtilities.invokeLater(() -> {
-			new ServerWindow((int)(ServerWindow.screenWidth/4), 
-						     (int)(ServerWindow.screenHeight/4), 
-						     "RtspServer", 
-						     server).setVisible(true);
-		});
+		List<OutputStream> oss = new ArrayList<OutputStream>();
+		ConsoleWriter writer = new ConsoleWriter(oss);
+		H264RtspServer server = new H264RtspServer(args[0], writer);
+		ServerWindow window = new ServerWindow((int)(ServerWindow.screenWidth/2), 
+			     (int)(ServerWindow.screenHeight/2), 
+			     "RtspServer", 
+			     server);		
+		oss.add(window.new JTextAreaOutputStream());		
+		window.setVisible(true);
+		Thread.sleep(1000);
+		server.printInfo();
 	}
 
 }
