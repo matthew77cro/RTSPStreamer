@@ -19,12 +19,12 @@ import hr.matija.rtpStreamer.rtsp.RTSPUtil;
 import hr.matija.rtpStreamer.rtsp.UriParser;
 import hr.matija.rtpStreamer.rtsp.RTSPUtil.RTSPRequest;
 import hr.matija.rtpStreamer.server.H264RtpStreamWorkerCollection.H264RtpStreamWorker;
-import hr.matija.rtpStreamer.server.H264RtspResources.Resource;
+import hr.matija.rtpStreamer.server.H264RtspResourceCollection.Resource;
 
 public class H264RtspReqHandlerCollection{
 	
 	private H264RtpStreamWorkerCollection streamWorkers;
-	private H264RtspResources resources;
+	private H264RtspResourceCollection resources;
 	private ConsoleWriter writer;
 	
 	private Map<Integer, H264RtspReqHandler> handlers = new HashMap<>();
@@ -32,7 +32,7 @@ public class H264RtspReqHandlerCollection{
 	
 	private Set<H264RtspReqHandlerCollectionListener> listeners = new HashSet<>();
 	
-	public H264RtspReqHandlerCollection(H264RtpStreamWorkerCollection streamWorkers, H264RtspResources resources, ConsoleWriter writer) {
+	public H264RtspReqHandlerCollection(H264RtpStreamWorkerCollection streamWorkers, H264RtspResourceCollection resources, ConsoleWriter writer) {
 		this.streamWorkers = Objects.requireNonNull(streamWorkers);
 		this.resources = Objects.requireNonNull(resources);
 		this.writer = Objects.requireNonNull(writer);
@@ -114,7 +114,7 @@ public class H264RtspReqHandlerCollection{
 		private Socket s;
 		private int ssrc;
 		private H264RtpStreamWorkerCollection streamWorkers;
-		private H264RtspResources resources;
+		private H264RtspResourceCollection resources;
 		
 		private H264RtpStreamWorker currentStreamWorker;
 		
@@ -126,7 +126,7 @@ public class H264RtspReqHandlerCollection{
 		private AtomicBoolean isRunning = new AtomicBoolean(false);
 		private AtomicBoolean stopReq = new AtomicBoolean(false);
 			
-		public H264RtspReqHandler(int id, Socket s, int ssrc, H264RtpStreamWorkerCollection streamWorkers, H264RtspResources resources) {
+		public H264RtspReqHandler(int id, Socket s, int ssrc, H264RtpStreamWorkerCollection streamWorkers, H264RtspResourceCollection resources) {
 			this.id = id;
 			this.s = Objects.requireNonNull(s);
 			this.ssrc = ssrc;

@@ -25,13 +25,12 @@ public class Main {
 		List<OutputStream> oss = new ArrayList<OutputStream>();
 		ConsoleWriter writer = new ConsoleWriter(oss);
 		H264RtspServer server = new H264RtspServer(args[0], writer);
-		ServerWindow window = new ServerWindow((int)(ServerWindow.screenWidth/2), 
-			     (int)(ServerWindow.screenHeight/2), 
+		ServerWindow window = new ServerWindow((int)(ServerWindow.screenWidth/1.5), 
+			     (int)(ServerWindow.screenHeight/1.5), 
 			     "RtspServer", 
 			     server);		
 		oss.add(window.new JTextAreaOutputStream());		
 		window.setVisible(true);
-		Thread.sleep(1000);
 		server.printInfo();
 	}
 

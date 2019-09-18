@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class H264RtspResources {
+public class H264RtspResourceCollection {
 	
 	private Path resourceDescriptor;
 	private Path resourceRoot;
@@ -20,7 +20,7 @@ public class H264RtspResources {
 	private Map<Integer, Resource> idResourceMapper;
 	private Map<String, Resource> uriResourceMapper;
 	
-	public H264RtspResources(Path resourceDescriptor, Path resourceRoot) throws IOException {
+	public H264RtspResourceCollection(Path resourceDescriptor, Path resourceRoot) throws IOException {
 		setResourceDescriptor(resourceDescriptor, resourceRoot);
 	}
 	
@@ -40,7 +40,9 @@ public class H264RtspResources {
 			String uri = resource[2];
 			int fps = Integer.parseInt(resource[3]);
 			
-			Resource res = new Resource(id, Paths.get(resourceRoot.toString() + "/" + name), uri, fps);
+			Path p = null;
+			if(!name.startsWith("live://")) p = Paths.get(resourceRoot.toString() + "/" + name);
+			Resource res = new Resource(id, name, p, uri, fps);
 			resources.add(res);
 			if(idResourceMapper.put(id, res) != null) throw new RuntimeException("There exist two resources with same id! This is illegal!");
 			if(uriResourceMapper.put(uri, res) != null) throw new RuntimeException("There exist two resources mapped to the same uri! This is illegal!");
@@ -85,19 +87,17 @@ public class H264RtspResources {
 	 */
 	public static class Resource {
 		private int id;
+		private String name;
 		private Path path;
 		private String uriMapping;
 		private int fps;
 		
-		private String name;
-		
-		public Resource(int id, Path path, String uriMapping, int fps) {
+		public Resource(int id, String name, Path path, String uriMapping, int fps) {
 			this.id = id;
+			this.name = name;
 			this.path = path;
 			this.uriMapping = uriMapping;
 			this.fps = fps;
-			
-			this.name = path.getFileName().toString();
 		}
 
 		public int getId() {

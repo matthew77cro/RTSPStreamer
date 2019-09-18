@@ -1,5 +1,6 @@
 package hr.matija.rtpStreamer.server;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
@@ -10,12 +11,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import hr.matija.rtpStreamer.console.ConsoleWriter;
 import hr.matija.rtpStreamer.h264.H264FileLoader;
-import hr.matija.rtpStreamer.h264.NalUnit;
+import hr.matija.rtpStreamer.h264.H264LiveCameraLoader;
+import hr.matija.rtpStreamer.h264.H264Loader;
 import hr.matija.rtpStreamer.h264.NalUnit.NalUnitType;
 import hr.matija.rtpStreamer.rtp.RTPUtil;
 import hr.matija.rtpStreamer.rtp.RTPUtil.RTPheader;
 import hr.matija.rtpStreamer.rtp.RTPUtil.RTPpacket;
-import hr.matija.rtpStreamer.server.H264RtspResources.Resource;
+import hr.matija.rtpStreamer.server.H264RtspResourceCollection.Resource;
 
 public class H264RtpStreamWorkerCollection {
 	
@@ -26,6 +28,7 @@ public class H264RtpStreamWorkerCollection {
 	private double packageDropRate = 0;
 	private int packageMultiplier = 1;
 	private boolean allowDropAll = true;
+	private boolean onlyRetransmitImportant = false;
 	
 	private Map<Integer, H264RtpStreamWorker> workers = new HashMap<>();
 	
@@ -95,8 +98,16 @@ public class H264RtpStreamWorkerCollection {
 	public void setAllowDropAll(boolean allowDropAll) {
 		this.allowDropAll = allowDropAll;
 	}
+	
+	public boolean isOnlyRetransmitImportant() {
+		return onlyRetransmitImportant;
+	}
+	
+	public void setOnlyRetransmitImportant(boolean onlyRetransmitImportant) {
+		this.onlyRetransmitImportant = onlyRetransmitImportant;
+	}
 
- 	public class H264RtpStreamWorker implements Runnable, AutoCloseable {
+ 	public class H264RtpStreamWorker implements Runnable, AutoCloseable, H264RtpStreamBandwidthSupplier {
 		
 		private int id;
 
@@ -114,6 +125,12 @@ public class H264RtpStreamWorkerCollection {
 		
 		private long timestampIncrement;
 		private int frameTime;
+		
+		private double maxBandwidth;
+		private double minBandwidth = Double.MAX_VALUE;
+		private double momentBandwidth;
+		private double momentBandwidthSum = 0;
+		private long momentBandwithCount = 0;
 		
 		private H264RtpStreamWorker(int id, Resource resource, SocketAddress address, short initSeqNum, int initTimestamp, int ssrc, long clockHz, byte payloadType) {
 			this.id = id;
@@ -133,55 +150,19 @@ public class H264RtpStreamWorkerCollection {
 		public void run() {
 			if(isStreaming.get()) throw new IllegalStateException("Already streaming!");
 			isStreaming.set(true);
+			stopReq.set(false);
 			writer.writeInfo("New stream: " + resource.getName() + " " + address.toString());
 			
-			try (DatagramSocket dSocket = new DatagramSocket();
-					H264FileLoader loader = new H264FileLoader(resource.getPath())){
+			try (DatagramSocket dSocket = new DatagramSocket()){
 				
-				loader.nextNalUnit();                          // load the first nalu
-				
-				short seqNum = initSeqNum;
-				int timestamp = initTimestamp;
-				boolean aud = loader.getNalUnit().getType() == NalUnitType.ACCESS_UNIT_DELIMITER; // true if next nal unit is AUD nal unit; used for timestamp increment and setting the marker to 1
-				
-				long start = System.currentTimeMillis();       // indicates start of one access unit; used for synchronizing sending of one frame
-				while(!stopReq.get()) {
-					
-					NalUnit nalu = loader.getNalUnit();
-					byte naluData[] = nalu.getData();
-					boolean end = !loader.nextNalUnit();
-					aud = end ? end : loader.getNalUnit().getType() == NalUnitType.ACCESS_UNIT_DELIMITER; // checking if next nalu is aud; 
-					 																					  // loader.getNalUnit() is now the next nalu after one that is currently sending
-					RTPheader header = new RTPheader((byte) 2, false, false, (byte) 0, aud, payloadType, seqNum, timestamp, ssrc);
-					byte UDPpayload[] = RTPUtil.createRTPpacket(new RTPpacket(header, naluData));
-					
-					DatagramPacket packet = new DatagramPacket(UDPpayload, UDPpayload.length, address);
-					for(int cnt=0; cnt<packageMultiplier; cnt++) {
-						// only send this packet if : it is decided by the packet drop rate OR
-						//						 	  we do not allow all packets to be dropped AND this is not a NON-IDR packet
-						if(Math.random()>=packageDropRate || (!allowDropAll && nalu.getType()!=NalUnitType.CODED_SLICE_NON_IDR))
-							dSocket.send(packet);
-					}
-					
-					if(end) break;
-					seqNum++;
-					
-					if(aud) { // skip access unit delimiter and refresh variables that need to be refreshed
-						timestamp+=timestampIncrement;
-						if(!loader.nextNalUnit()) break;
-						aud = loader.getNalUnit().getType() == NalUnitType.ACCESS_UNIT_DELIMITER;
-						
-						long sleep = this.frameTime - (System.currentTimeMillis() - start); //time between two frames - time passed for sending the frame
-						Thread.sleep(sleep < 0 ? 0 : sleep); //if time passed for sending the frame is greater than time between two frames, then don't sleep
-												
-						while(pause.get() && !stopReq.get()); // if the stream is paused
-						
-						start = System.currentTimeMillis();
-					}
-					
-				}
+				H264Loader loader;
+				if(resource.getName().startsWith("live://")) loader = new H264LiveCameraLoader(resource.getName().substring(7));
+				else loader = new H264FileLoader(resource.getPath());
+				sendFrames(dSocket, loader);
+				loader.close();
 				
 			} catch (Exception ex) {
+				ex.printStackTrace();
 				writer.writeError("Unexpected exception " + ex.getClass().getName() + " : " + ex.getMessage());
 			} finally {
 				writer.writeInfo("Closed stream: " + resource.getName() + " " + address.toString());
@@ -190,6 +171,96 @@ public class H264RtpStreamWorkerCollection {
 			}
 		}
 		
+		private void sendFrames(DatagramSocket dSocket, H264Loader loader) throws IOException, InterruptedException {
+			short seqNum = initSeqNum;
+			int timestamp = initTimestamp;
+			double bytesToMbitsMultiplier = 8.0/1_000_000;
+			
+			Thread.sleep(50);
+			long start = System.currentTimeMillis();       // indicates start of one access unit; used for synchronizing sending of one frame
+
+			long tic = System.currentTimeMillis();
+			long toc = System.currentTimeMillis();
+			double transferedSizeMb = 0;
+			while(!stopReq.get()) {
+				if(!loader.nextNalUnit()) break;
+				
+				if(loader.getNalUnit().getType()==NalUnitType.ACCESS_UNIT_DELIMITER) {
+					timestamp+=timestampIncrement;
+					
+					long delay = System.currentTimeMillis() - start;
+					long sleep = this.frameTime - delay;
+					if(sleep>0) Thread.sleep(sleep);
+					
+					while(pause.get() && !stopReq.get());
+					
+					start = System.currentTimeMillis();
+					continue;
+				}
+				
+				byte nalu[] = loader.getNalUnit().getData(); 
+				RTPheader header = new RTPheader((byte) 2, false, false, (byte) 0, false, payloadType, seqNum, timestamp, ssrc);
+				byte UDPpayload[] = RTPUtil.createRTPpacket(new RTPpacket(header, nalu));
+				DatagramPacket packet = new DatagramPacket(UDPpayload, UDPpayload.length, address);
+				
+				double packageSize = UDPpayload.length*bytesToMbitsMultiplier;
+				if(onlyRetransmitImportant && loader.getNalUnit().getType() == NalUnitType.CODED_SLICE_NON_IDR) {
+					if(Math.random()>=packageDropRate ||
+							!allowDropAll && loader.getNalUnit().getType()!=NalUnitType.CODED_SLICE_NON_IDR) {
+							dSocket.send(packet);
+							transferedSizeMb+=packageSize;
+					}
+				} else {
+					for(int cnt=0; cnt<packageMultiplier; cnt++) {
+						if(Math.random()<packageDropRate &&
+							(allowDropAll || loader.getNalUnit().getType()==NalUnitType.CODED_SLICE_NON_IDR)) continue;
+							dSocket.send(packet);
+							transferedSizeMb+=packageSize;
+					}
+				}
+				
+				toc = System.currentTimeMillis();
+				
+				if(toc-tic>=1000) {
+					this.momentBandwidth = transferedSizeMb / ((toc-tic) / 1000.0);
+					if (Double.MAX_VALUE - this.momentBandwidthSum > this.momentBandwidth) //TODO overflow
+					this.momentBandwidthSum += this.momentBandwidth;
+					this.momentBandwithCount++;
+					if(momentBandwidth>maxBandwidth) maxBandwidth = momentBandwidth;
+					if(momentBandwidth<minBandwidth) minBandwidth = momentBandwidth;
+					transferedSizeMb = 0;
+					tic = System.currentTimeMillis();
+				}
+				
+				seqNum++;
+				
+			}
+			writer.writeInfo("Maximum bandwidth: " + maxBandwidth);
+			writer.writeInfo("Minimum bandwidth: " + minBandwidth);
+			writer.writeInfo("Average bandwidth: " + momentBandwidthSum/momentBandwithCount);
+			
+		}
+		
+		@Override
+		public double getMaximumBandwidth() {
+			return maxBandwidth;
+		}
+
+		@Override
+		public double getMinimumBandwidth() {
+			return minBandwidth;
+		}
+
+		@Override
+		public double getAverageBandwidth() {
+			return this.momentBandwidthSum/this.momentBandwithCount;
+		}
+
+		@Override
+		public double getMomentBandwidth() {
+			return momentBandwidth;
+		}
+
 		public boolean isStreaming() {
 			return isStreaming.get();
 		}

@@ -1,17 +1,31 @@
-# This is a resource descriptor
-# It maps resources that server will be serving to the uri paths
-#
-#
-# RESOURCE_UNIQUE_ID	PATH_TO_THE_RESOURCE	URI_MAPPING	FPS
-# Columns are separated by tabs ('\t')
-#
-#
-# Example:
-# 1000 sample_1080p_60fps.h264	samplefullhd	60
-# => video named "sample_1080p_60fps.h264" will be mapped to rtsp://serverIP:port/samplefullhd
-#    and resource is a video that needs to be played at 60 fps; id
-#	 of this resource is 1000
-#
-# Also, lines that start with '#' are comments (they will be ignored)
-1001	sample_720_60fps.h264	samplehd60	60
+#                         RESOURCE DESCRIPTOR
+#/---------------------------------------------------------------------\
+#| This is a resource descriptor                                       |
+#| It maps resources that server will be serving to the uri paths      |
+#|                                                                     |
+#|                                                                     |
+#| RESOURCE_UNIQUE_ID	PATH_TO_THE_RESOURCE	URI_MAPPING	FPS        |
+#| Columns are separated by tabs ('\t')                                |
+#|                                                                     |
+#|                                                                     |
+#| Example 1:                                                          |
+#| 1000 sample_1080p_60fps.h264	samplefullhd	60                     |
+#| => video named "sample_1080p_60fps.h264" will be mapped to          |
+#|	  rtsp://serverIP:port/samplefullhd                                |
+#|    and resource is a video that needs to be played at 60 fps; id    |
+#|	  of this resource is 1000                                         |
+#|                                                                     |
+#| Example 2:                                                          |
+#| 1001 live://HP Wide Vision HD Camera	live	30                     |
+#| => physical camera named "HP Wide Vision HD Camera" will be mapped  |
+#|	  to rtsp://serverIP:port/live and resource is a live video feed   |
+#|	  that needs to be played at 30 fps; id of this resource is 1001;  |
+#|	  this must be a physical camera connected to the server           |
+#|                                                                     |
+#| To list all available devices run:                                  |
+#| ffmpeg -list_devices true -f dshow -i dummy                         |
+#|                                                                     |
+#| Also, lines starting with '#' are comments (they will be ignored)   |
+#\---------------------------------------------------------------------/
+1001	live://HP Wide Vision HD Camera	live	30
 1002	sample_1080_60fps.h264	samplefullhd60	60

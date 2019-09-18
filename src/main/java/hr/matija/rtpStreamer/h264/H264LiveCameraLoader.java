@@ -1,43 +1,34 @@
 package hr.matija.rtpStreamer.h264;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Objects;
+import java.io.InputStream;
 
 import hr.matija.rtpStreamer.h264.NalUnit.NalUnitType;
 
-/**
- * Loader of the h264 nal units from a file on disk.
- * @author Matija
- *
- */
-public class H264FileLoader implements H264Loader{
+public class H264LiveCameraLoader implements H264Loader {
 	
 	private static int kibi64 = 64*1024;
 	
-	private Path h264File;
-	private BufferedInputStream bis;
-	
 	private NalUnit nextNal;
-	
 	private boolean firstNal = true;
 	
-	/**
-	 * Initializes the h264 file loader
-	 * @param h264File path to the raw h264 file in the annex B format (byte stream of nal units
-	 *                 separated by 0x00 00 01, and each access unit separated by the AUD - access unit
-	 *                 delimiter; AUD must not be at the start of the file!)
-	 * @throws IOException if an I/O error occurs
-	 */
-	public H264FileLoader(Path h264File)  throws IOException {
-		this.h264File = Objects.requireNonNull(h264File);
-		
-		if(!Files.isRegularFile(h264File) || !Files.isReadable(h264File)) throw new RuntimeException("File is not readable or is not a regular file!");
-		bis = new BufferedInputStream(Files.newInputStream(this.h264File));
-	}
+	private ProcessBuilder pb;
+	private Process currentProcess;
+	private InputStream is;
 	
+	public H264LiveCameraLoader(String cameraName) throws IOException {
+		pb = new ProcessBuilder(("ffmpeg -f dshow -i video=\"" + cameraName + "\" "
+				+ "-c:v libx264 -preset ultrafast -tune zerolatency -x264opts aud=1 -bsf "
+				+ "h264_mp4toannexb -an -f h264 pipe:1").split(" "));
+		currentProcess = pb.start();
+		is = currentProcess.getInputStream();
+	}
+
+	@Override
+	public void close() throws Exception {
+		if(is!=null) is.close();
+		if(currentProcess!=null) currentProcess.destroy();
+	}
 
 	@Override
 	public boolean nextNalUnit() throws IOException {
@@ -47,8 +38,22 @@ public class H264FileLoader implements H264Loader{
 		
 		int state = 0;
 outer:	while(true) {
+	
 			int next;
-			next = bis.read();
+			next = is.read();
+	
+			if(is.available()==0) {
+				System.out.println("change");
+				is.close();
+				currentProcess.destroy();
+				try {
+					currentProcess.waitFor();
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+				currentProcess = pb.start();
+				is = currentProcess.getInputStream();
+			}
 
 			if(next==-1) break;
 			
@@ -60,7 +65,7 @@ outer:	while(true) {
 						else state = 0;
 						break;
 				case 2: if(nextByte!=0 && nextByte!=1) {state = 0; break;}
-						if(nextByte==0) next = bis.read(); //eat the next 0x1
+						if(nextByte==0) next = is.read(); //eat the next 0x1
 						dataLen-=3;
 						break outer;
 			}
@@ -89,11 +94,6 @@ outer:	while(true) {
 	public NalUnit getNalUnit() {
 		if(nextNal==null) throw new IllegalStateException("No NAL units to return!");
 		return nextNal;
-	}
-	
-	@Override
-	public void close() throws IOException {
-		bis.close();
 	}
 
 }
